@@ -1,0 +1,20 @@
+{
+  "name": "misskey-x-hometl",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "node --env-file=.env dist/index.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

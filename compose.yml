@@ -1,0 +1,17 @@
+services:
+  x-hometl:
+    build:
+      context: .
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - misskey_net
+      - external_net
+
+networks:
+  misskey_net:
+    external: true
+    name: misskey-orenoheya_default
+  external_net:
+    driver: bridge
