@@ -82,6 +82,8 @@ export interface Tweet {
     name: string;
     screenName: string;
   };
+  /** リポスト時のみ: 元ツイートのID（idはRT自体のID） */
+  originalId?: string;
 }
 
 export class TwitterClient {
@@ -222,6 +224,7 @@ function parseTweetResult(result: any): Tweet | null {
           name: userLegacy.name as string,
           screenName: userLegacy.screen_name as string,
         },
+        originalId: original.id,
       };
     }
   }
