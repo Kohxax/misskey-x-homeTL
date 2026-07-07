@@ -97,7 +97,7 @@ docker compose up -d
 
 Misskey バックエンドのコンテナが `X_BRIDGE_URL` 環境変数を参照します。既定値は `http://x-hometl:3001` (サービス名 `x-hometl` + ポート 3001) です。同一ネットワーク上に参加していれば名前解決されるため、既定値のままで通常は動作します。
 
-異なるサービス名やポートを使う場合は、Misskey 本体の `.env` または `docker-compose.yml` に以下を追加してください:
+異なるサービス名やポートを使う場合は、Misskey 本体の `default.yml` に以下を追加するか、systemdで実行時にシェルから環境変数で以下を指定してから起動してください。（非docker環境未テストです。）
 
 ```
 X_BRIDGE_URL=http://<サービス名>:<PORT>
