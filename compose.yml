@@ -12,6 +12,6 @@ services:
 networks:
   misskey_net:
     external: true
-    name: misskey-orenoheya_default
+    name: misskey-orenoheya_internal_network
   external_net:
     driver: bridge
