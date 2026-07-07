@@ -22,7 +22,7 @@ const HOME_TL_QUERY_ID =
 
 // HomeTimeline (おすすめ) の GraphQL query ID（環境変数で上書き可能）
 const FOR_YOU_TL_QUERY_ID =
-  process.env.FOR_YOU_TL_QUERY_ID ?? 'HCosseXhPUCBOmYTGNWNXg';
+  process.env.FOR_YOU_TL_QUERY_ID ?? 'gKia-nBM9kwuDEfSDeWMfQ';
 
 // FavoriteTweet mutation の GraphQL query ID（環境変数で上書き可能）
 const FAVORITE_QUERY_ID =
@@ -222,9 +222,8 @@ export class TwitterClient {
 
 function parseForYouTweets(data: unknown): TimelineResult {
   try {
-    // HomeTimeline (おすすめ) のレスポンスパスは HomeLatestTimeline と異なる
     const instructions =
-      (data as any)?.data?.home_timeline_by_tl?.timeline?.instructions ?? [];
+      (data as any)?.data?.home?.home_timeline_urt?.instructions ?? [];
     return parseInstructions(instructions);
   } catch {
     return { tweets: [], cursorTop: null };
