@@ -263,9 +263,17 @@ function parseTweetResult(result: any): Tweet | null {
   const tweet =
     result.__typename === 'TweetWithVisibilityResults' ? result.tweet : result;
   const legacy = tweet?.legacy;
-  const userLegacy = tweet?.core?.user_results?.result?.legacy;
+  const userResult = tweet?.core?.user_results?.result;
+  // HomeLatestTimeline: name/screen_name/avatar は legacy に入っている
+  // HomeTimeline (for-you): name/screen_name は core に、avatar は avatar.image_url に入っている
+  const userLegacy = userResult?.legacy;
+  const userCore = userResult?.core;
+  const userAvatarUrl: string | undefined =
+    userResult?.legacy?.profile_image_url_https ?? userResult?.avatar?.image_url;
+  const name: string | undefined = userLegacy?.name ?? userCore?.name;
+  const screenName: string | undefined = userLegacy?.screen_name ?? userCore?.screen_name;
 
-  if (!legacy || !userLegacy) return null;
+  if (!legacy || !name) return null;
 
   // リツイートの場合は元ツイートを主体として返し、RTしたユーザーを retweetedBy に添付する
   const retweetedResult = legacy.retweeted_status_result?.result;
@@ -277,8 +285,8 @@ function parseTweetResult(result: any): Tweet | null {
         id: legacy.id_str as string,
         createdAt: legacy.created_at as string,
         retweetedBy: {
-          name: userLegacy.name as string,
-          screenName: userLegacy.screen_name as string,
+          name: name as string,
+          screenName: screenName as string,
         },
         originalId: original.id,
       };
@@ -326,10 +334,10 @@ function parseTweetResult(result: any): Tweet | null {
     text,
     createdAt: legacy.created_at as string,
     author: {
-      name: userLegacy.name as string,
-      screenName: userLegacy.screen_name as string,
-      avatarUrl: userLegacy.profile_image_url_https as string,
-      protected: (userLegacy.protected as boolean | undefined) ?? false,
+      name: name as string,
+      screenName: screenName as string,
+      avatarUrl: userAvatarUrl as string,
+      protected: (userLegacy?.protected as boolean | undefined) ?? false,
     },
     media,
     quotedTweet:
