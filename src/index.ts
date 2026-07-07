@@ -18,6 +18,8 @@ if (!authToken || !ct0) {
 
 const client = new TwitterClient(authToken, ct0);
 
+const likedTweetIds = new Set<string>();
+
 let cache: { tweets: Tweet[]; fetchedAt: number; cursorTop: string | null } = {
   tweets: [],
   fetchedAt: 0,
@@ -124,6 +126,10 @@ app.get('/timeline', async (_req, res) => {
   }
 });
 
+app.get('/liked', (_req, res) => {
+  res.json([...likedTweetIds]);
+});
+
 app.post('/like', async (req, res) => {
   const id = req.body?.id as string | undefined;
   if (!id) {
@@ -133,6 +139,7 @@ app.post('/like', async (req, res) => {
   console.log(`[like] tweet ${id}`);
   try {
     await client.likeTweet(id);
+    likedTweetIds.add(id);
     console.log(`[like] ok: ${id}`);
     res.json({ ok: true });
   } catch (err) {
@@ -150,6 +157,7 @@ app.post('/unlike', async (req, res) => {
   console.log(`[unlike] tweet ${id}`);
   try {
     await client.unlikeTweet(id);
+    likedTweetIds.delete(id);
     console.log(`[unlike] ok: ${id}`);
     res.json({ ok: true });
   } catch (err) {
