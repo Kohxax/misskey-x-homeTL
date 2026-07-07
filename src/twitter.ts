@@ -20,6 +20,10 @@ const BEARER_TOKEN =
 const HOME_TL_QUERY_ID =
   process.env.HOME_TL_QUERY_ID ?? 'K0X1xbCZUjttdK8RazKAlw';
 
+// HomeTimeline (おすすめ) の GraphQL query ID（環境変数で上書き可能）
+const FOR_YOU_TL_QUERY_ID =
+  process.env.FOR_YOU_TL_QUERY_ID ?? 'HCosseXhPUCBOmYTGNWNXg';
+
 // FavoriteTweet mutation の GraphQL query ID（環境変数で上書き可能）
 const FAVORITE_QUERY_ID =
   process.env.FAVORITE_QUERY_ID ?? 'lI07N6Otwv1PhnEgXILM7A';
@@ -140,6 +144,44 @@ export class TwitterClient {
     }
   }
 
+  async fetchForYouTimeline(count = 40, cursor?: string): Promise<TimelineResult> {
+    const variables: Record<string, unknown> = {
+      count,
+      includePromotedContent: true,
+      latestControlAvailable: true,
+      requestContext: cursor ? 'ptr' : 'launch',
+      withCommunity: true,
+      seenTweetIds: [],
+    };
+    if (cursor) variables.cursor = cursor;
+
+    const url =
+      `https://x.com/i/api/graphql/${FOR_YOU_TL_QUERY_ID}/HomeTimeline` +
+      `?variables=${encodeURIComponent(JSON.stringify(variables))}` +
+      `&features=${encodeURIComponent(JSON.stringify(FEATURES))}`;
+
+    const res = await fetch(url, {
+      headers: {
+        ...this.commonHeaders,
+        'x-twitter-client-language': 'ja',
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      if (res.status === 401 || res.status === 403) {
+        throw new TwitterApiError('AUTH_ERROR', `Twitter API returned ${res.status}: ${body}`);
+      }
+      if (res.status === 400 || res.status === 404) {
+        throw new TwitterApiError('QUERY_ID_ERROR', `Twitter API returned ${res.status} (query ID may have changed): ${body}`);
+      }
+      throw new TwitterApiError('UNKNOWN', `Twitter GraphQL error: ${res.status} ${body}`);
+    }
+
+    const data = (await res.json()) as unknown;
+    return parseForYouTweets(data);
+  }
+
   async fetchHomeTimeline(count = 40, cursor?: string): Promise<TimelineResult> {
     const variables: Record<string, unknown> = {
       count,
@@ -178,24 +220,39 @@ export class TwitterClient {
   }
 }
 
+function parseForYouTweets(data: unknown): TimelineResult {
+  try {
+    // HomeTimeline (おすすめ) のレスポンスパスは HomeLatestTimeline と異なる
+    const instructions =
+      (data as any)?.data?.home_timeline_by_tl?.timeline?.instructions ?? [];
+    return parseInstructions(instructions);
+  } catch {
+    return { tweets: [], cursorTop: null };
+  }
+}
+
+function parseInstructions(instructions: unknown[]): TimelineResult {
+  const addEntries = instructions.find((i: any) => i.type === 'TimelineAddEntries') as any;
+  const entries: unknown[] = addEntries?.entries ?? [];
+
+  const tweets = entries
+    .filter((e: any) => (e.entryId as string)?.startsWith('tweet-'))
+    .map((e: any) => parseTweetResult(e.content?.itemContent?.tweet_results?.result))
+    .filter((t): t is Tweet => t !== null);
+
+  const cursorTopEntry = entries.find(
+    (e: any) => (e.content as any)?.cursorType === 'Top',
+  );
+  const cursorTop = ((cursorTopEntry as any)?.content?.value as string | undefined) ?? null;
+
+  return { tweets, cursorTop };
+}
+
 function parseTweets(data: unknown): TimelineResult {
   try {
     const instructions =
       (data as any)?.data?.home?.home_timeline_urt?.instructions ?? [];
-    const entries: unknown[] =
-      instructions.find((i: any) => i.type === 'TimelineAddEntries')?.entries ?? [];
-
-    const tweets = entries
-      .filter((e: any) => (e.entryId as string)?.startsWith('tweet-'))
-      .map((e: any) => parseTweetResult(e.content?.itemContent?.tweet_results?.result))
-      .filter((t): t is Tweet => t !== null);
-
-    const cursorTopEntry = entries.find(
-      (e: any) => (e.content as any)?.cursorType === 'Top',
-    );
-    const cursorTop = ((cursorTopEntry as any)?.content?.value as string | undefined) ?? null;
-
-    return { tweets, cursorTop };
+    return parseInstructions(instructions);
   } catch {
     return { tweets: [], cursorTop: null };
   }

@@ -26,6 +26,11 @@ let cache: { tweets: Tweet[]; fetchedAt: number; cursorTop: string | null } = {
   cursorTop: null,
 };
 
+let forYouCache: { tweets: Tweet[]; fetchedAt: number; cursorTop: string | null } = {
+  tweets: [],
+  fetchedAt: 0,
+  cursorTop: null,
+};
 
 let status: {
   consecutiveErrors: number;
@@ -120,6 +125,75 @@ app.get('/timeline', async (_req, res) => {
     if (cache.tweets.length > 0) {
       console.log(`[timeline] returning stale cache (${cache.tweets.length} tweets)`);
       res.json(cache.tweets);
+    } else {
+      res.status(502).json({ errorType, error: errorMessage });
+    }
+  }
+});
+
+app.get('/for-you', async (_req, res) => {
+  const now = Date.now();
+  if (now - forYouCache.fetchedAt < CACHE_TTL_MS) {
+    const age = Math.round((now - forYouCache.fetchedAt) / 1000);
+    console.log(`[for-you] cache hit (age: ${age}s, pool: ${forYouCache.tweets.length})`);
+    res.json(forYouCache.tweets);
+    return;
+  }
+
+  const isIncremental = forYouCache.cursorTop !== null;
+  const count = isIncremental ? TIMELINE_INCREMENTAL_COUNT : TIMELINE_COUNT;
+  console.log(`[for-you] ${isIncremental ? 'incremental' : 'initial'} fetch (count: ${count})...`);
+
+  try {
+    const result = await client.fetchForYouTimeline(count, forYouCache.cursorTop ?? undefined);
+
+    let tweets: Tweet[];
+    if (isIncremental) {
+      if (result.tweets.length > 0) {
+        const seen = new Set<string>(forYouCache.tweets.map(t => t.id));
+        const newTweets = result.tweets.filter(t => !seen.has(t.id));
+        // おすすめTLはアルゴリズム順を維持するため新着を先頭に追加（時系列ソートなし）
+        tweets = [...newTweets, ...forYouCache.tweets].slice(0, MAX_POOL_SIZE);
+        console.log(`[for-you] +${newTweets.length} new tweets, pool: ${tweets.length}`);
+      } else {
+        tweets = forYouCache.tweets;
+        console.log('[for-you] no new tweets, pool unchanged');
+      }
+    } else {
+      tweets = result.tweets;
+      console.log(`[for-you] initial: ${tweets.length} tweets`);
+    }
+
+    forYouCache = {
+      tweets,
+      fetchedAt: now,
+      cursorTop: result.cursorTop ?? forYouCache.cursorTop,
+    };
+
+    const nowIso = new Date(now).toISOString();
+    status = { ...status, consecutiveErrors: 0, lastSuccessAt: nowIso, lastFetchAt: nowIso };
+
+    res.json(tweets);
+  } catch (err) {
+    const nowIso = new Date().toISOString();
+    const errorType = err instanceof TwitterApiError ? err.type : 'UNKNOWN';
+    const errorMessage = err instanceof Error ? err.message : String(err);
+
+    status = {
+      consecutiveErrors: status.consecutiveErrors + 1,
+      lastError: { type: errorType, message: errorMessage, at: nowIso },
+      lastSuccessAt: status.lastSuccessAt,
+      lastFetchAt: nowIso,
+    };
+
+    if (status.consecutiveErrors >= 3) {
+      console.error(`[ALERT] ${status.consecutiveErrors} consecutive errors! type=${errorType}`);
+    }
+    console.error(`[for-you] fetch failed (${errorType}):`, err);
+
+    if (forYouCache.tweets.length > 0) {
+      console.log(`[for-you] returning stale cache (${forYouCache.tweets.length} tweets)`);
+      res.json(forYouCache.tweets);
     } else {
       res.status(502).json({ errorType, error: errorMessage });
     }
