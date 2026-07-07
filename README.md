@@ -4,6 +4,8 @@ X (Twitter) の特定ユーザーのホームタイムラインを取得して J
 
 Misskey 本体 (フォーク側) の XTL 機能 (フォロー中タブ / Deck カラム) が `X_BRIDGE_URL` 経由でこのサーバーにアクセスし、X のタイムラインを表示します。Misskey 本体は X と直接通信しません。
 
+Misskey側フォークは[こちら](https://github.com/Kohxax/misskey-XTL)
+
 ```
 [Misskey フロントエンド]
        ↓ /api/x/timeline 
@@ -274,5 +276,5 @@ docker compose logs x-hometl
 
 ## 補足
 
-- **XTL の表示機能 (フロントエンド / `x/*` API エンドポイント)** はこのリポジトリではなく、Misskey 本体側のフォーク [misskey-orenoheya](https://github.com/Kohxax/misskey-orenoheya/tree/orenoheya-develop) に実装されています。このリポジトリはデータ取得ブリッジ部分のみです。
+- **XTL の表示機能 (フロントエンド / `x/*` API エンドポイント)** はこのリポジトリではなく、Misskey 本体側のフォーク [misskey-XTL](https://github.com/Kohxax/misskey-XTL) に実装されています。このリポジトリはデータ取得ブリッジ部分のみです。
 - いいね状態はブリッジプロセスのメモリ上で管理されるため、複数デバイスからアクセスすると状態が共有されますが、**サーバー再起動でリセット**されます。
